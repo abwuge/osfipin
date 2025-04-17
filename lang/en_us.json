@@ -1,0 +1,19 @@
+{
+    "api_error": "API returned an error: {}",
+    "worldtime_api_success": "Successfully fetched time from WorldTimeAPI",
+    "worldclock_api_success": "Successfully fetched time from WorldClockAPI",
+    "apihz_api_success": "Successfully fetched time from apihz",
+    "certificate_info": "Certificate info - Domains: {}, Valid until: {}",
+    "config_created": "Default configuration file has been created. Please edit it with your actual settings and run the program again.",
+    "config_loaded": "Loaded configuration from: {}",
+    "config_path": "Configuration file path: {}",
+    "fetching_network_time": "Fetching network time...",
+    "making_request": "Making API request...",
+    "mark_not_found": "Item with mark \"{}\" not found",
+    "network_time_error": "Failed to fetch network time, using local time instead",
+    "not_found_error": "Config file not found. Creating default configuration.",
+    "parse_error": "Error parsing config file. Creating default configuration.",
+    "request_error": "Request error: {}",
+    "response": "Response:",
+    "time_remaining": "Time remaining: {} days {} hours {} minutes {} seconds"
+}

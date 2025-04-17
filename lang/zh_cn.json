@@ -1,0 +1,19 @@
+{
+    "api_error": "API返回错误: {}",
+    "worldtime_api_success": "成功从 WorldTimeAPI 获取时间",
+    "worldclock_api_success": "成功从 WorldClockAPI 获取时间",
+    "apihz_api_success": "成功从接口盒子获取时间",
+    "certificate_info": "证书信息 - 域名: {}, 有效期至: {}",
+    "config_created": "已创建默认配置文件。请编辑文件填入您的实际设置，然后重新运行程序。",
+    "config_loaded": "已加载配置文件：{}",
+    "config_path": "配置文件路径：{}",
+    "fetching_network_time": "正在获取网络时间...",
+    "making_request": "正在发送API请求...",
+    "mark_not_found": "未找到标记为\"{}\"的项目",
+    "network_time_error": "获取网络时间失败，将使用本地时间",
+    "not_found_error": "未找到配置文件。正在创建默认配置。",
+    "parse_error": "解析配置文件时出错。正在创建默认配置。",
+    "request_error": "请求错误：{}",
+    "response": "响应结果：",
+    "time_remaining": "剩余时间：{} 天 {} 小时 {} 分钟 {} 秒"
+}
