@@ -12,3 +12,6 @@ __pycache__/
 
 # Log files
 logs/
+
+# Data files
+data
