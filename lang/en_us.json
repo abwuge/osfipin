@@ -39,5 +39,13 @@
     "logger.error.request": "Request error: {}",
     "logger.info.fetching.network.time": "Fetching network time...",
     "logger.info.making.request": "Making API request...",
-    "logger.info.time.remaining": "Time remaining: {} days {} hours {} minutes {} seconds"
+    "logger.info.time.remaining": "Time remaining: {} days {} hours {} minutes {} seconds",
+    
+    "renewal.warning.expiring": "Certificate will expire in less than 14 days! Domain ID: {}",
+    "renewal.debug.api.request": "Making renewal API request to {}",
+    "renewal.debug.api.response": "Received renewal response with status code: {}",
+    "renewal.success": "Successfully renewed certificate. Response ID: {}",
+    "renewal.error.api": "Renewal API error: {}",
+    "renewal.error.process": "Error during renewal process: {}",
+    "renewal.info.pausing": "Pausing for 1 second to avoid high concurrency issues..."
 }

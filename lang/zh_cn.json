@@ -39,5 +39,13 @@
     "logger.error.request": "请求错误：{}",
     "logger.info.fetching.network.time": "正在获取网络时间...",
     "logger.info.making.request": "正在发送API请求...",
-    "logger.info.time.remaining": "剩余时间：{} 天 {} 小时 {} 分钟 {} 秒"
+    "logger.info.time.remaining": "剩余时间：{} 天 {} 小时 {} 分钟 {} 秒",
+    
+    "renewal.warning.expiring": "证书将在不到14天内过期！域名ID: {}",
+    "renewal.debug.api.request": "正在发送续期API请求到 {}",
+    "renewal.debug.api.response": "收到续期响应，状态码: {}",
+    "renewal.success": "成功续期证书。响应ID: {}",
+    "renewal.error.api": "续期API错误: {}",
+    "renewal.error.process": "续期过程中出错: {}",
+    "renewal.info.pausing": "暂停1秒以避免高并发问题..."
 }

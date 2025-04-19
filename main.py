@@ -4,6 +4,7 @@
 import requests
 import sys
 import json
+import time
 from datetime import datetime, timezone
 import concurrent.futures
 import threading
@@ -42,6 +43,52 @@ def make_api_request(config):
         error_msg = f"Request error: {str(e)}"
         logger.error(error_msg)
         return error_msg
+
+
+def make_renewal_api_request(config, domain_id, is_path=False):
+    """
+    Make API request for domain renewal
+    
+    Args:
+        config: Configuration instance
+        domain_id: Domain ID to renew
+        is_path: Whether to use path parameter (default: False)
+        
+    Returns:
+        dict: Parsed API response
+    """
+    logger = get_logger()
+
+    # Prepare API URL
+    base_url = config.get("api_url")
+    endpoint = f"/api/user/OrderDetail/renew?id={domain_id}&is_path={str(is_path).lower()}"
+    url = f"{base_url}{endpoint}"
+
+    # Prepare authorization header with Bearer token:user format
+    token = config.get("token")
+    username = config.get("username")
+    auth_value = f"Bearer {token}:{username}"
+
+    # Set up headers and payload
+    headers = {"Authorization": auth_value}
+    payload = {}
+
+    # Make the request
+    try:
+        logger.debug("renewal.debug.api.request", url)
+        response = requests.request("GET", url, headers=headers, data=payload)
+        logger.debug("renewal.debug.api.response", response.status_code)
+        
+        # Parse and return JSON response
+        return json.loads(response.text)
+    except requests.RequestException as e:
+        error_msg = f"Renewal request error: {str(e)}"
+        logger.error(error_msg)
+        raise Exception(error_msg)
+    except json.JSONDecodeError:
+        error_msg = "Invalid JSON response from renewal API"
+        logger.error(error_msg)
+        raise Exception(error_msg)
 
 
 def _fetch_world_time_api():
@@ -355,6 +402,33 @@ def main():
         domains = found_item.get("domains", [])
         domains_str = ", ".join(domains) if domains else "N/A"
         logger.info("certificate.info", domains_str, time_end)
+        
+        # Add pause notification before renewal check
+        logger.info("renewal.info.pausing")
+        time.sleep(1)
+        
+        # Check if remaining time is less than 14 days
+        domain_id = found_item.get("id")
+        if days < 14:
+            logger.warning("renewal.warning.expiring", domain_id)
+            
+            # Get is_path value from config, default to false
+            is_path = config.get("is_path", False)
+            
+            try:
+                # Call renewal API
+                renewal_response = make_renewal_api_request(config, domain_id, is_path)
+                
+                # Check if renewal was successful
+                if renewal_response.get("isOk", False) and not renewal_response.get("isError", True):
+                    response_id = renewal_response.get("data", {}).get("id")
+                    logger.info("renewal.success", response_id)
+                else:
+                    # Extract error message from response
+                    error_message = renewal_response.get("error", "Unknown error")
+                    logger.error("renewal.error.api", error_message)
+            except Exception as e:
+                logger.error("renewal.error.process", str(e))
 
     except json.JSONDecodeError:
         logger.error("logger.error.request", "Invalid JSON response")

@@ -42,6 +42,7 @@ class Config:
             "target_mark": "",
             "apihz_id": "88888888",
             "apihz_key": "88888888",
+            "is_path": False,
             "log_settings": {
                 "log_dir": "logs",
                 "console_level": "info",
@@ -65,6 +66,7 @@ class Config:
             "target_mark": "",
             "apihz_id": "88888888",
             "apihz_key": "88888888",
+            "is_path": False,
             "log_settings": {
                 "log_dir": "logs",
                 "console_level": "info",
