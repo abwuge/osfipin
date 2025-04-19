@@ -91,6 +91,86 @@ def make_renewal_api_request(config, domain_id, is_path=False):
         raise Exception(error_msg)
 
 
+def download_certificate(config, cert_id):
+    """
+    Download certificate using provided ID
+    
+    Args:
+        config: Configuration instance
+        cert_id: Certificate ID to download
+        
+    Returns:
+        dict: Parsed API response with certificate data
+    """
+    logger = get_logger()
+
+    # Prepare API URL
+    base_url = config.get("api_url")
+    endpoint = f"/api/user/OrderDetail/down?id={cert_id}&type=json"
+    url = f"{base_url}{endpoint}"
+
+    # Prepare authorization header
+    token = config.get("token")
+    username = config.get("username")
+    auth_value = f"Bearer {token}:{username}"
+
+    # Set up headers
+    headers = {"Authorization": auth_value}
+
+    # Make the request
+    try:
+        logger.debug("certificate.download.request", url)
+        response = requests.request("GET", url, headers=headers)
+        logger.debug("certificate.download.response", response.status_code)
+        
+        # Parse and return JSON response
+        return json.loads(response.text)
+    except requests.RequestException as e:
+        error_msg = f"Certificate download error: {str(e)}"
+        logger.error(error_msg)
+        raise Exception(error_msg)
+    except json.JSONDecodeError:
+        error_msg = "Invalid JSON response from certificate download API"
+        logger.error(error_msg)
+        raise Exception(error_msg)
+
+
+def save_certificate_files(cert_data, mark):
+    """
+    Save certificate and key files to specified directory
+    
+    Args:
+        cert_data: Certificate data containing cert and key
+        mark: Mark for directory naming
+        
+    Returns:
+        bool: True if files saved successfully, False otherwise
+    """
+    import os
+    logger = get_logger()
+    
+    # Ensure data directory exists
+    cert_dir = os.path.join("data", mark)
+    os.makedirs(cert_dir, exist_ok=True)
+    
+    try:
+        # Save certificate file (fullchain.crt)
+        cert_file_path = os.path.join(cert_dir, "fullchain.crt")
+        with open(cert_file_path, "w", encoding="utf-8") as f:
+            f.write(cert_data.get("cert", ""))
+        
+        # Save private key file (private.pem)
+        key_file_path = os.path.join(cert_dir, "private.pem")
+        with open(key_file_path, "w", encoding="utf-8") as f:
+            f.write(cert_data.get("key", ""))
+            
+        logger.info("certificate.save.success", cert_file_path, key_file_path)
+        return True
+    except Exception as e:
+        logger.error("certificate.save.error", str(e))
+        return False
+
+
 def _fetch_world_time_api():
     """
     Fetch time from WorldTimeAPI
@@ -407,8 +487,10 @@ def main():
         logger.info("renewal.info.pausing")
         time.sleep(1)
         
-        # Check if remaining time is less than 14 days
+        # Get domain_id for potential renewal
         domain_id = found_item.get("id")
+        
+        # Check if remaining time is less than 14 days
         if days < 14:
             logger.warning("renewal.warning.expiring", domain_id)
             
@@ -423,12 +505,39 @@ def main():
                 if renewal_response.get("isOk", False) and not renewal_response.get("isError", True):
                     response_id = renewal_response.get("data", {}).get("id")
                     logger.info("renewal.success", response_id)
+                    
+                    # Wait 1 second before downloading certificate
+                    logger.debug("certificate.download.waiting")
+                    time.sleep(1)
+                    
+                    try:
+                        # Download certificate after renewal
+                        cert_response = download_certificate(config, response_id)
+                        
+                        # Check if download was successful
+                        if cert_response.get("isOk", False) and not cert_response.get("isError", True):
+                            cert_data = cert_response.get("data", {})
+                            
+                            # Save certificate files
+                            if cert_data and save_certificate_files(cert_data, target_mark):
+                                logger.info("certificate.download.save.success")
+                            else:
+                                logger.error("certificate.download.save.failed")
+                        else:
+                            # Extract error message from response
+                            error_message = cert_response.get("error", "Unknown error")
+                            logger.error("certificate.download.error", error_message)
+                    except Exception as e:
+                        logger.error("certificate.download.error", str(e))
                 else:
                     # Extract error message from response
                     error_message = renewal_response.get("error", "Unknown error")
                     logger.error("renewal.error.api", error_message)
             except Exception as e:
                 logger.error("renewal.error.process", str(e))
+        else:
+            # Certificate doesn't need renewal
+            logger.info("renewal.not.needed", domain_id)
 
     except json.JSONDecodeError:
         logger.error("logger.error.request", "Invalid JSON response")
