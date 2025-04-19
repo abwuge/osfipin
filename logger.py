@@ -12,9 +12,12 @@ class EncodedRotatingFileHandler(RotatingFileHandler):
     """
     Extended version of RotatingFileHandler that supports encoding
     """
-    def __init__(self, filename, mode='a', maxBytes=0, backupCount=0, encoding='utf-8', delay=0):
+
+    def __init__(
+        self, filename, mode="a", maxBytes=0, backupCount=0, encoding="utf-8", delay=0
+    ):
         super().__init__(filename, mode, maxBytes, backupCount, encoding, delay)
-    
+
     def _open(self):
         """
         Open the current base file with specific encoding
@@ -87,10 +90,10 @@ class Logger:
 
         # Set up file handler with rotation and UTF-8 encoding
         file_handler = EncodedRotatingFileHandler(
-            log_file, 
-            maxBytes=self.max_size, 
+            log_file,
+            maxBytes=self.max_size,
             backupCount=self.backup_count,
-            encoding="utf-8"
+            encoding="utf-8",
         )
         file_handler.setLevel(self.file_level)
         file_handler.setFormatter(file_formatter)

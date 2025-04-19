@@ -6,7 +6,6 @@ import sys
 import json
 import time
 from datetime import datetime, timezone
-import concurrent.futures
 import threading
 from config import Config
 from language import get_language_instance
@@ -48,12 +47,12 @@ def make_api_request(config):
 def make_renewal_api_request(config, domain_id, is_path=False):
     """
     Make API request for domain renewal
-    
+
     Args:
         config: Configuration instance
         domain_id: Domain ID to renew
         is_path: Whether to use path parameter (default: False)
-        
+
     Returns:
         dict: Parsed API response
     """
@@ -61,7 +60,9 @@ def make_renewal_api_request(config, domain_id, is_path=False):
 
     # Prepare API URL
     base_url = config.get("api_url")
-    endpoint = f"/api/user/OrderDetail/renew?id={domain_id}&is_path={str(is_path).lower()}"
+    endpoint = (
+        f"/api/user/OrderDetail/renew?id={domain_id}&is_path={str(is_path).lower()}"
+    )
     url = f"{base_url}{endpoint}"
 
     # Prepare authorization header with Bearer token:user format
@@ -78,7 +79,7 @@ def make_renewal_api_request(config, domain_id, is_path=False):
         logger.debug("renewal.debug.api.request", url)
         response = requests.request("GET", url, headers=headers, data=payload)
         logger.debug("renewal.debug.api.response", response.status_code)
-        
+
         # Parse and return JSON response
         return json.loads(response.text)
     except requests.RequestException as e:
@@ -94,11 +95,11 @@ def make_renewal_api_request(config, domain_id, is_path=False):
 def download_certificate(config, cert_id):
     """
     Download certificate using provided ID
-    
+
     Args:
         config: Configuration instance
         cert_id: Certificate ID to download
-        
+
     Returns:
         dict: Parsed API response with certificate data
     """
@@ -122,7 +123,7 @@ def download_certificate(config, cert_id):
         logger.debug("certificate.download.request", url)
         response = requests.request("GET", url, headers=headers)
         logger.debug("certificate.download.response", response.status_code)
-        
+
         # Parse and return JSON response
         return json.loads(response.text)
     except requests.RequestException as e:
@@ -138,32 +139,33 @@ def download_certificate(config, cert_id):
 def save_certificate_files(cert_data, mark):
     """
     Save certificate and key files to specified directory
-    
+
     Args:
         cert_data: Certificate data containing cert and key
         mark: Mark for directory naming
-        
+
     Returns:
         bool: True if files saved successfully, False otherwise
     """
     import os
+
     logger = get_logger()
-    
+
     # Ensure data directory exists
     cert_dir = os.path.join("data", mark)
     os.makedirs(cert_dir, exist_ok=True)
-    
+
     try:
         # Save certificate file (fullchain.crt)
         cert_file_path = os.path.join(cert_dir, "fullchain.crt")
         with open(cert_file_path, "w", encoding="utf-8") as f:
             f.write(cert_data.get("cert", ""))
-        
+
         # Save private key file (private.pem)
         key_file_path = os.path.join(cert_dir, "private.pem")
         with open(key_file_path, "w", encoding="utf-8") as f:
             f.write(cert_data.get("key", ""))
-            
+
         logger.info("certificate.save.success", cert_file_path, key_file_path)
         return True
     except Exception as e:
@@ -279,25 +281,25 @@ def get_current_time(lang, config):
     """
     logger = get_logger()
     logger.info("logger.info.fetching.network.time")
-    
+
     # Use a threading Event to signal that we've found a result
     # This allows us to immediately return as soon as any API succeeds
     success_event = threading.Event()
     result_container = []
-    
+
     def fetch_time_from_api(api_func, api_name, *args):
         """Worker function to fetch time from a specific API"""
         # If another thread has already succeeded, don't even try
         if success_event.is_set():
             return
-            
+
         try:
             # Make the API call with appropriate args
             if args:
                 result = api_func(*args)
             else:
                 result = api_func()
-                
+
             # If we got a valid result, signal success and store the result
             if result:
                 logger.info(f"api.time.{api_name}.success")
@@ -308,43 +310,40 @@ def get_current_time(lang, config):
             # Only log failures if no success has occurred yet
             if not success_event.is_set():
                 logger.debug(f"api.time.{api_name}.exception", str(sys.exc_info()[1]))
-    
+
     # Create and start threads for each API
     threads = []
-    
+
     # WorldTime API thread
     wt_thread = threading.Thread(
-        target=fetch_time_from_api,
-        args=(_fetch_world_time_api, "worldtime")
+        target=fetch_time_from_api, args=(_fetch_world_time_api, "worldtime")
     )
     threads.append(wt_thread)
-    
+
     # WorldClock API thread
     wc_thread = threading.Thread(
-        target=fetch_time_from_api,
-        args=(_fetch_world_clock_api, "worldclock")
+        target=fetch_time_from_api, args=(_fetch_world_clock_api, "worldclock")
     )
     threads.append(wc_thread)
-    
+
     # APIhz API thread
     apihz_thread = threading.Thread(
-        target=fetch_time_from_api,
-        args=(_fetch_apihz_api, "apihz", config)
+        target=fetch_time_from_api, args=(_fetch_apihz_api, "apihz", config)
     )
     threads.append(apihz_thread)
-    
+
     # Start all threads
     for thread in threads:
         thread.daemon = True  # Make threads daemon so they don't block program exit
         thread.start()
-    
+
     # Wait for either a success or timeout (max 5 seconds)
     success_event.wait(timeout=5)
-    
+
     # If we got a result, return it immediately
     if result_container:
         return result_container[0]
-    
+
     # If all APIs fail, fall back to local time
     logger.warning("logger.error.network.time")
     return datetime.now()
@@ -482,44 +481,50 @@ def main():
         domains = found_item.get("domains", [])
         domains_str = ", ".join(domains) if domains else "N/A"
         logger.info("certificate.info", domains_str, time_end)
-        
+
         # Add pause notification before renewal check
         logger.info("renewal.info.pausing")
         time.sleep(1)
-        
+
         # Get domain_id for potential renewal
         domain_id = found_item.get("id")
-        
+
         # Check if remaining time is less than 14 days
         if days < 14:
             logger.warning("renewal.warning.expiring", domain_id)
-            
+
             # Get is_path value from config, default to false
             is_path = config.get("is_path", False)
-            
+
             try:
                 # Call renewal API
                 renewal_response = make_renewal_api_request(config, domain_id, is_path)
-                
+
                 # Check if renewal was successful
-                if renewal_response.get("isOk", False) and not renewal_response.get("isError", True):
+                if renewal_response.get("isOk", False) and not renewal_response.get(
+                    "isError", True
+                ):
                     response_id = renewal_response.get("data", {}).get("id")
                     logger.info("renewal.success", response_id)
-                    
+
                     # Wait 1 second before downloading certificate
                     logger.debug("certificate.download.waiting")
                     time.sleep(1)
-                    
+
                     try:
                         # Download certificate after renewal
                         cert_response = download_certificate(config, response_id)
-                        
+
                         # Check if download was successful
-                        if cert_response.get("isOk", False) and not cert_response.get("isError", True):
+                        if cert_response.get("isOk", False) and not cert_response.get(
+                            "isError", True
+                        ):
                             cert_data = cert_response.get("data", {})
-                            
+
                             # Save certificate files
-                            if cert_data and save_certificate_files(cert_data, target_mark):
+                            if cert_data and save_certificate_files(
+                                cert_data, target_mark
+                            ):
                                 logger.info("certificate.download.save.success")
                             else:
                                 logger.error("certificate.download.save.failed")
