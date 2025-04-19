@@ -6,6 +6,7 @@ import sys
 import json
 from datetime import datetime, timezone
 import concurrent.futures
+import threading
 from config import Config
 from language import get_language_instance
 from logger import initialize_logger, get_logger
@@ -151,36 +152,72 @@ def get_current_time(lang, config):
     """
     logger = get_logger()
     logger.info("logger.info.fetching.network.time")
-
-    # Use ThreadPoolExecutor to make API calls in parallel
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-        # Start all API fetch tasks
-        futures = {
-            executor.submit(_fetch_world_time_api): "worldtime",
-            executor.submit(_fetch_world_clock_api): "worldclock",
-            executor.submit(_fetch_apihz_api, config): "apihz",
-        }
-
-        # Wait for the first successful result or all to complete
-        for future in concurrent.futures.as_completed(futures):
-            api_name = futures[future]
-            try:
-                result = future.result()
-                if result is not None:
-                    # Success - we have a valid datetime
-                    # Display which specific API provided the time
-                    logger.info(f"api.time.{api_name}.success")
-
-                    # Cancel remaining futures
-                    for f in futures:
-                        if f != future and not f.done():
-                            f.cancel()
-
-                    return result
-            except Exception as e:
-                logger.debug("api.executor.exception", api_name, str(e))
-                continue
-
+    
+    # Use a threading Event to signal that we've found a result
+    # This allows us to immediately return as soon as any API succeeds
+    success_event = threading.Event()
+    result_container = []
+    
+    def fetch_time_from_api(api_func, api_name, *args):
+        """Worker function to fetch time from a specific API"""
+        # If another thread has already succeeded, don't even try
+        if success_event.is_set():
+            return
+            
+        try:
+            # Make the API call with appropriate args
+            if args:
+                result = api_func(*args)
+            else:
+                result = api_func()
+                
+            # If we got a valid result, signal success and store the result
+            if result:
+                logger.info(f"api.time.{api_name}.success")
+                result_container.append(result)
+                # Signal to other threads that we're done
+                success_event.set()
+        except Exception:
+            # Only log failures if no success has occurred yet
+            if not success_event.is_set():
+                logger.debug(f"api.time.{api_name}.exception", str(sys.exc_info()[1]))
+    
+    # Create and start threads for each API
+    threads = []
+    
+    # WorldTime API thread
+    wt_thread = threading.Thread(
+        target=fetch_time_from_api,
+        args=(_fetch_world_time_api, "worldtime")
+    )
+    threads.append(wt_thread)
+    
+    # WorldClock API thread
+    wc_thread = threading.Thread(
+        target=fetch_time_from_api,
+        args=(_fetch_world_clock_api, "worldclock")
+    )
+    threads.append(wc_thread)
+    
+    # APIhz API thread
+    apihz_thread = threading.Thread(
+        target=fetch_time_from_api,
+        args=(_fetch_apihz_api, "apihz", config)
+    )
+    threads.append(apihz_thread)
+    
+    # Start all threads
+    for thread in threads:
+        thread.daemon = True  # Make threads daemon so they don't block program exit
+        thread.start()
+    
+    # Wait for either a success or timeout (max 5 seconds)
+    success_event.wait(timeout=5)
+    
+    # If we got a result, return it immediately
+    if result_container:
+        return result_container[0]
+    
     # If all APIs fail, fall back to local time
     logger.warning("logger.error.network.time")
     return datetime.now()
