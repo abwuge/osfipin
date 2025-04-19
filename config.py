@@ -42,7 +42,52 @@ class Config:
             "target_mark": "",
             "apihz_id": "88888888",
             "apihz_key": "88888888",
+            "log_settings": {
+                "log_dir": "logs",
+                "console_level": "info",
+                "file_level": "debug",
+                "max_size_mb": 5,
+                "backup_count": 3,
+            },
         }
+        self.save_config()
+
+    def validate_config(self):
+        """
+        Validate configuration file integrity, ensure all required keys exist
+        Add default values for missing keys
+        """
+        default_config = {
+            "api_url": "https://api.xwamp.com",
+            "username": "user@example.com",
+            "token": "your_token_here",
+            "language": "auto",
+            "target_mark": "",
+            "apihz_id": "88888888",
+            "apihz_key": "88888888",
+            "log_settings": {
+                "log_dir": "logs",
+                "console_level": "info",
+                "file_level": "debug",
+                "max_size_mb": 5,
+                "backup_count": 3,
+            },
+        }
+
+        # Check for missing top-level keys
+        for key, default_value in default_config.items():
+            if key not in self.config:
+                self.config[key] = default_value
+
+        # Check for missing nested log settings
+        if isinstance(self.config.get("log_settings"), dict):
+            for key, default_value in default_config["log_settings"].items():
+                if key not in self.config["log_settings"]:
+                    self.config["log_settings"][key] = default_value
+        else:
+            self.config["log_settings"] = default_config["log_settings"]
+
+        # Save updated config if changes were made
         self.save_config()
 
     def save_config(self):

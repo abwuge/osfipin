@@ -9,3 +9,6 @@ __pycache__/
 
 # Copilot prompts
 .github/prompts
+
+# Log files
+logs/
